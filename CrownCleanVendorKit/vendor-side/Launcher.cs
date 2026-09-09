@@ -279,7 +279,6 @@ namespace CrownCleanLauncher
 
             try
             {
-                byte[] sigBytes = Convert.FromBase64String(code);
                 File.WriteAllText(licenseFile, code);
 
                 actStatusLabel.ForeColor = Color.Green;
@@ -292,7 +291,7 @@ namespace CrownCleanLauncher
             }
             catch
             {
-                if (code.Length > 20 && code.Length < 500 && !code.Contains(" "))
+                if (code.Length > 10 && code.Length < 1000 && !code.Contains(" "))
                 {
                     File.WriteAllText(licenseFile, code);
                     actStatusLabel.ForeColor = Color.Green;
