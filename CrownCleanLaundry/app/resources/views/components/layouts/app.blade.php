@@ -34,6 +34,11 @@
 <body class="tw-text-sm">
     <livewire:components.sidebar />
     <main class="dashboard-main">
+        @if(licenseIsGrace())
+        <div style="background: linear-gradient(135deg, #f59e0b, #d97706); color: white; padding: 10px 20px; text-align: center; font-weight: 500; font-size: 13px;">
+            ⚠️ License expired — Reports &amp; Export disabled. Contact vendor to renew.
+        </div>
+        @endif
         <livewire:components.navbar :title="$title ?? ''"/>
         {{ $slot }}
     </main>

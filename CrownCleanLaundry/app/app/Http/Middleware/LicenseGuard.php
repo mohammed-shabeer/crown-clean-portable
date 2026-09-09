@@ -6,9 +6,6 @@ use Closure;
 use Illuminate\Http\Request;
 use Symfony\Component\HttpFoundation\Response;
 
-/**
- * Application access guard.
- */
 class LicenseGuard
 {
     const PUB_KEY = "-----BEGIN PUBLIC KEY-----\n"
@@ -20,6 +17,8 @@ class LicenseGuard
         . "jv8H65w/NN+PJV/nTr4upt9EsKvehXGbw1qu/9xycMyylGGZ30jg9w99VkyfFnb3\n"
         . "lQIDAQAB\n"
         . "-----END PUBLIC KEY-----";
+
+    const GRACE_PERIOD_DAYS = 30;
 
     public static function machineId(): string
     {
@@ -39,30 +38,127 @@ class LicenseGuard
         return storage_path('app/.ccl');
     }
 
-    public static function activated(): bool
+    /**
+     * Parse the .ccl file.
+     * New format: TIMESTAMP.base64_SIGNATURE
+     * Legacy format: plain base64_SIGNATURE (old activation, treated as permanent)
+     */
+    private static function parseLicenseFile(): ?array
     {
         $f = self::licenseFile();
         if (!is_file($f)) {
-            return false;
+            return null;
         }
-        $sig64 = @file_get_contents($f);
-        if ($sig64 === false || $sig64 === '') {
-            return false;
+        $content = @file_get_contents($f);
+        if ($content === false || $content === '') {
+            return null;
         }
-        $raw = base64_decode($sig64, true);
+        $content = trim($content);
+
+        if (preg_match('/^(\d+)\.(.+)$/', $content, $m)) {
+            $expiry = (int) $m[1];
+            $raw = base64_decode($m[2], true);
+            if ($raw === false) {
+                return null;
+            }
+            return ['expiry' => $expiry, 'raw' => $raw];
+        }
+
+        $raw = base64_decode($content, true);
         if ($raw === false) {
-            return false;
+            return null;
         }
-        return openssl_verify(self::machineId(), $raw, self::PUB_KEY) === 1;
+        return ['expiry' => 0, 'raw' => $raw];
     }
 
-    public static function activate(string $sig64): bool
+    private static function verifySignature(int $expiry, string $raw): bool
     {
-        $raw = base64_decode(trim($sig64), true);
+        $machineId = self::machineId();
+        $payload = $machineId . ':' . $expiry;
+        return openssl_verify($payload, $raw, self::PUB_KEY) === 1;
+    }
+
+    public static function getLicenseInfo(): array
+    {
+        $license = self::parseLicenseFile();
+        if ($license === null) {
+            return ['status' => 'none', 'expiry' => 0, 'days_remaining' => 0];
+        }
+
+        $expiry = $license['expiry'];
+        $raw = $license['raw'];
+
+        if (!self::verifySignature($expiry, $raw)) {
+            if (openssl_verify(self::machineId(), $raw, self::PUB_KEY) === 1) {
+                return ['status' => 'active', 'expiry' => 0, 'days_remaining' => 99999];
+            }
+            return ['status' => 'invalid', 'expiry' => 0, 'days_remaining' => 0];
+        }
+
+        if ($expiry === 0) {
+            return ['status' => 'active', 'expiry' => 0, 'days_remaining' => 99999];
+        }
+
+        $now = time();
+        $daysRemaining = (int) ceil(($expiry - $now) / 86400);
+
+        if ($now < $expiry) {
+            return ['status' => 'active', 'expiry' => $expiry, 'days_remaining' => $daysRemaining];
+        }
+
+        $graceExpiry = $expiry + (self::GRACE_PERIOD_DAYS * 86400);
+        if ($now < $graceExpiry) {
+            $graceDays = (int) ceil(($graceExpiry - $now) / 86400);
+            return ['status' => 'grace', 'expiry' => $expiry, 'days_remaining' => $daysRemaining, 'grace_days' => $graceDays];
+        }
+
+        return ['status' => 'locked', 'expiry' => $expiry, 'days_remaining' => $daysRemaining];
+    }
+
+    public static function activated(): bool
+    {
+        $info = self::getLicenseInfo();
+        return in_array($info['status'], ['active', 'grace'], true);
+    }
+
+    public static function isActive(): bool
+    {
+        return self::getLicenseInfo()['status'] === 'active';
+    }
+
+    public static function isGracePeriod(): bool
+    {
+        return self::getLicenseInfo()['status'] === 'grace';
+    }
+
+    public static function isLocked(): bool
+    {
+        return self::getLicenseInfo()['status'] === 'locked';
+    }
+
+    public static function activate(string $code): bool
+    {
+        $code = trim($code);
+
+        if (preg_match('/^(\d+)\.(.+)$/', $code, $m)) {
+            $expiry = (int) $m[1];
+            $raw = base64_decode($m[2], true);
+            if ($raw === false) {
+                return false;
+            }
+            if (!self::verifySignature($expiry, $raw)) {
+                return false;
+            }
+            @file_put_contents(self::licenseFile(), $code, LOCK_EX);
+            return self::activated();
+        }
+
+        $raw = base64_decode($code, true);
         if ($raw === false) {
             return false;
         }
-        if (openssl_verify(self::machineId(), $raw, self::PUB_KEY) !== 1) {
+        $machineId = self::machineId();
+        if (openssl_verify($machineId, $raw, self::PUB_KEY) !== 1) {
             return false;
         }
         @file_put_contents(self::licenseFile(), base64_encode($raw), LOCK_EX);
@@ -75,9 +171,18 @@ class LicenseGuard
         if (in_array($path, ['license-activate', 'livewire/update', 'up'], true)) {
             return $next($request);
         }
-        if (!self::activated()) {
+
+        $info = self::getLicenseInfo();
+
+        if (in_array($info['status'], ['none', 'invalid', 'locked'], true)) {
             return redirect('/license-activate');
         }
+
+        if ($info['status'] === 'grace') {
+            $request->attributes->set('license_grace', true);
+            $request->attributes->set('license_grace_days', $info['grace_days'] ?? 0);
+        }
+
         return $next($request);
     }
 }

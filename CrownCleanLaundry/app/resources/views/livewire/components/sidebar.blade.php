@@ -114,6 +114,7 @@
             </li>
             @endcan
             @canany(['report_daily','report_order','report_sales','report_expense','report_ledger','report_tax'])
+            @if(licenseIsActive())
             <li class="dropdown">
                 <a href="javascript:void(0)">
                     <iconify-icon icon="iconoir:reports" class="menu-icon"></iconify-icon>
@@ -158,6 +159,14 @@
                     @endcan
                 </ul>
             </li>
+            @else
+            <li class="dropdown" style="opacity:0.4; pointer-events:none;">
+                <a href="javascript:void(0)">
+                    <iconify-icon icon="iconoir:reports" class="menu-icon"></iconify-icon>
+                    <span>Reports 🔒</span>
+                </a>
+            </li>
+            @endif
             @endcanany
             <li class="sidebar-menu-group-title">{{$lang->data['account'] ?? 'Account'}}</li>
             @can('setting_view')
