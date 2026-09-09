@@ -1,0 +1,25 @@
+{
+    "name": "crown-clean-laundry/app",
+    "type": "project",
+    "license": "proprietary",
+    "autoload": {
+        "files": [
+            "app/helper.php"
+        ],
+        "psr-4": {
+            "App\\": "app/",
+            "Database\\Factories\\": "database/factories/",
+            "Database\\Seeders\\": "database/seeders/"
+        }
+    },
+    "autoload-dev": {
+        "psr-4": {
+            "Tests\\": "tests/"
+        }
+    },
+    "extra": {
+        "laravel": {
+            "dont-discover": []
+        }
+    }
+}

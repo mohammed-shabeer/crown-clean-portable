@@ -1,0 +1,66 @@
+# Crown Clean Portable — .gitignore
+
+# ===========================
+# SENSITIVE FILES (NEVER commit)
+# ===========================
+*.pem
+private.key
+private.pem
+public.key
+app/storage/app/.ccl
+
+# ===========================
+# RUNTIME BINARIES (too large for git)
+# ===========================
+CrownCleanLaundry/runtime/
+CrownCleanLaundry/*.exe
+CrownCleanLaundry/*.dll
+CrownCleanLaundry/data/mysql/*.log
+
+# ===========================
+# LARAVEL GENERATED
+# ===========================
+CrownCleanLaundry/app/vendor/
+CrownCleanLaundry/app/node_modules/
+CrownCleanLaundry/app/storage/logs/*
+CrownCleanLaundry/app/storage/framework/cache/*
+CrownCleanLaundry/app/storage/framework/sessions/*
+CrownCleanLaundry/app/storage/framework/views/*
+CrownCleanLaundry/app/bootstrap/cache/*
+!CrownCleanLaundry/app/storage/logs/.gitkeep
+!CrownCleanLaundry/app/storage/framework/cache/.gitkeep
+!CrownCleanLaundry/app/storage/framework/sessions/.gitkeep
+!CrownCleanLaundry/app/bootstrap/cache/.gitkeep
+
+# ===========================
+# IDE / OS
+# ===========================
+.vs/
+.vscode/
+.idea/
+*.suo
+*.user
+Thumbs.db
+Desktop.ini
+.DS_Store
+
+# ===========================
+# PHP / Composer
+# ===========================
+composer.phar
+composer.lock
+
+# ===========================
+# NODE
+# ===========================
+package-lock.json
+yarn.lock
+
+# ===========================
+# BUILD ARTIFACTS
+# ===========================
+*.log
+*.tmp
+*.bak
+*.swp
+*~

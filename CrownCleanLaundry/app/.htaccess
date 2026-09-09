@@ -1,0 +1,11 @@
+<IfModule mod_rewrite.c>
+	RewriteEngine On
+	RewriteBase /laundry-box/
+
+	# Serve public/index.php when hitting the project root
+	DirectoryIndex public/index.php
+
+	# Only rewrite if the request isn't already for /public
+	RewriteCond %{REQUEST_URI} !^/laundry-box/public/
+	RewriteRule ^(.*)$ public/$1 [L]
+</IfModule>
